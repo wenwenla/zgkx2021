@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 from replay_buffer import ReplayBuffer
 from zgkx_env import make_env
 
-from entropy_stat import get_rao_quadratic_entropy, get_expected_entropy_over_states
+from entropy_stat import get_rao_quadratic_entropy, get_expected_entropy_over_states, get_det_diversity
 
 EPSILON = 0.1
 LR = 1e-3
@@ -145,12 +145,14 @@ class DQNTrainer:
 
         rao = self.log_rao_entropy()
         avg_e = self.log_average_entropy()
+        det_e = self.log_det_diversity()
 
         self._sw.add_scalar('rewards', rew, self._ep)
         self._sw.add_scalar('rao', rao, self._ep)
         self._sw.add_scalar('avg', avg_e, self._ep)
+        self._sw.add_scalar('det', det_e, self._ep)
 
-        return rew, rao, avg_e
+        return rew, rao, avg_e, det_e
 
     def log_rao_entropy(self):
         policies = []
@@ -164,13 +166,19 @@ class DQNTrainer:
             policies.append(self._policy_mapper[i])
         return get_expected_entropy_over_states(policies, self._sampled_states)
 
+    def log_det_diversity(self):
+        policies = []
+        for i in self._env.agents_name():
+            policies.append(self._policy_mapper[i])
+        return get_det_diversity(policies, self._sampled_states)
+
 
 def main():
     torch.set_num_threads(1)
     trainer = DQNTrainer({
         'n_agents': 5
     })
-    for i in range(10000):
+    for i in range(2000):
         r = trainer.train_one_ep()
         print(f'EP: {i} RE: {r}')
 
