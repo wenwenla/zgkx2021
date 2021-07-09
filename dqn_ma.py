@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -5,10 +7,22 @@ import torch.optim as optim
 
 from torch.utils.tensorboard import SummaryWriter
 
+from collections import deque
+
 from replay_buffer import ReplayBuffer
 from zgkx_env import make_env
 
 from entropy_stat import get_rao_quadratic_entropy, get_expected_entropy_over_states, get_det_diversity
+
+import argparse
+
+
+parser = argparse.ArgumentParser(description='Input n_agents and main folder')
+parser.add_argument('--agents', type=int)
+parser.add_argument('--history', type=int)
+parser.add_argument('--folder', type=str)
+
+args = parser.parse_args()
 
 EPSILON = 0.1
 LR = 1e-3
@@ -17,7 +31,10 @@ GAMMA = 0.95
 OBS_DIM = 10
 ACT_CNT = 5
 START_SAMPLES = 2000
-RENDER_FLAG = True
+RENDER_FLAG = False
+FOLDER = args.folder
+HISTORY_LEN = args.history
+AGENTS = args.agents
 
 
 class DQNModel(torch.nn.Module):
@@ -35,6 +52,19 @@ class DQNModel(torch.nn.Module):
         return q_val
 
 
+class Policies:
+
+    def __init__(self, obs_dim, act_cnt, policy_state_dict):
+        self._model = DQNModel(obs_dim, act_cnt)
+        self._model.load_state_dict(policy_state_dict)
+
+    def choose_actions(self, states):
+        states = torch.tensor(states).float()
+        with torch.no_grad():
+            actions = self._model(states).numpy()
+        return np.argmax(actions, axis=1)
+
+
 class DQNAgent:
 
     def __init__(self, obs_dim, act_cnt):
@@ -47,6 +77,9 @@ class DQNAgent:
         self.loss_fn = torch.nn.MSELoss()
         self.replay = ReplayBuffer(1000000, (self._obs_dim, ), 1)
         self._steps = 0
+
+    def get_state_dict(self):
+        return self.qnet.state_dict()
 
     def choose_actions(self, states):
         states = torch.tensor(states).float()
@@ -103,13 +136,15 @@ class DQNAgent:
 class DQNTrainer:
 
     def __init__(self, env_config):
+        self._n_agents = env_config['n_agents']
         self._env = make_env(**env_config)
         self._policy_mapper = {
             f'uav_{i}': DQNAgent(OBS_DIM, ACT_CNT) for i in range(env_config['n_agents'])
         }
         self._sampled_states = []
         self._sampled_index = 0
-        self._sw = SummaryWriter('./logs')
+        self._policies = [deque([], maxlen=HISTORY_LEN) for _ in range(env_config['n_agents'])]
+        self._sw = SummaryWriter(os.path.join(FOLDER, 'logs'))
         self._ep = 0
 
     def train_one_ep(self):
@@ -143,16 +178,22 @@ class DQNTrainer:
             states = next_states
             rew += np.mean(list(rewards.values()))
 
+        for i, agent in enumerate(self._env.agents_name()):
+            p = self._policy_mapper[agent]
+            self._policies[i].append(Policies(OBS_DIM, ACT_CNT, p.get_state_dict()))
+
         rao = self.log_rao_entropy()
         avg_e = self.log_average_entropy()
-        det_e = self.log_det_diversity()
+        # det_e = self.log_det_diversity()
 
         self._sw.add_scalar('rewards', rew, self._ep)
         self._sw.add_scalar('rao', rao, self._ep)
         self._sw.add_scalar('avg', avg_e, self._ep)
-        self._sw.add_scalar('det', det_e, self._ep)
+        # self._sw.add_scalar('det', det_e, self._ep)
 
-        return rew, rao, avg_e, det_e
+        self.time_step_log()
+
+        return rew, rao, avg_e
 
     def log_rao_entropy(self):
         policies = []
@@ -172,11 +213,18 @@ class DQNTrainer:
             policies.append(self._policy_mapper[i])
         return get_det_diversity(policies, self._sampled_states)
 
+    def time_step_log(self):
+        for i in range(self._n_agents):
+            rao = get_rao_quadratic_entropy(self._policies[i], self._sampled_states)
+            avg_e = get_expected_entropy_over_states(self._policies[i], self._sampled_states)
+            self._sw.add_scalar(f'agent_{i}/rao', rao, self._ep)
+            self._sw.add_scalar(f'agent_{i}/avg_e', avg_e, self._ep)
+
 
 def main():
     torch.set_num_threads(1)
     trainer = DQNTrainer({
-        'n_agents': 20
+        'n_agents': AGENTS
     })
     for i in range(200):
         r = trainer.train_one_ep()
