@@ -17,7 +17,7 @@ GAMMA = 0.95
 OBS_DIM = 10
 ACT_CNT = 5
 START_SAMPLES = 2000
-RENDER_FLAG = False
+RENDER_FLAG = True
 
 
 class DQNModel(torch.nn.Module):
@@ -176,9 +176,9 @@ class DQNTrainer:
 def main():
     torch.set_num_threads(1)
     trainer = DQNTrainer({
-        'n_agents': 5
+        'n_agents': 20
     })
-    for i in range(2000):
+    for i in range(200):
         r = trainer.train_one_ep()
         print(f'EP: {i} RE: {r}')
 

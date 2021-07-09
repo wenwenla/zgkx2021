@@ -48,7 +48,7 @@ def make_env(**kwargs):
 
 
 def main():
-    env = EnvEasy(5)
+    env = EnvEasy(20)
     env.reset()
     while True:
         r = env.step({f'uav_{k}': np.random.randint(0, 5) for k in range(2)})
