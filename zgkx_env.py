@@ -8,6 +8,8 @@ class EnvEasy(GridEnv):
 
     def __init__(self, n_agents):
         super().__init__('./config2.conf', n_agents)
+        self.obs_dim = 10
+        self.act_cnt = 5
 
     def agents_name(self):
         return [f'uav_{index}' for index in range(self.n_agents)]
@@ -19,7 +21,7 @@ class EnvEasy(GridEnv):
             obs = [pos[0], pos[1]]
             for r, c in dx:
                 n = (pos[0] + r, pos[1] + c)
-                if self._map[n[0]][n[0]] == GridEnv.OBSTACLE_TOKEN:
+                if self._map[n[0]][n[1]] == GridEnv.OBSTACLE_TOKEN:
                     obs.append(0)
                 else:
                     obs.append(1)
@@ -41,10 +43,6 @@ class EnvEasy(GridEnv):
             result[f'uav_{i}'] += potential
 
         return result
-
-
-def make_env(**kwargs):
-    return EnvEasy(kwargs['n_agents'])
 
 
 def main():

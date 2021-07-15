@@ -10,7 +10,8 @@ from torch.utils.tensorboard import SummaryWriter
 from collections import deque
 
 from replay_buffer import ReplayBuffer
-from zgkx_env import make_env
+from zgkx_env import EnvEasy
+from zgkx_dynamic_env import DynamicEnv
 
 from entropy_stat import get_rao_quadratic_entropy, get_expected_entropy_over_states, get_det_diversity
 
@@ -21,6 +22,8 @@ parser = argparse.ArgumentParser(description='Input n_agents and main folder')
 parser.add_argument('--agents', type=int)
 parser.add_argument('--history', type=int)
 parser.add_argument('--folder', type=str)
+parser.add_argument('--max_ep', type=int)
+parser.add_argument('--env', type=str)
 
 args = parser.parse_args()
 
@@ -28,13 +31,13 @@ EPSILON = 0.1
 LR = 1e-3
 BATCH = 128
 GAMMA = 0.95
-OBS_DIM = 10
-ACT_CNT = 5
 START_SAMPLES = 2000
 RENDER_FLAG = False
 FOLDER = args.folder
 HISTORY_LEN = args.history
 AGENTS = args.agents
+MAX_EP = args.max_ep
+ENV_NAME = args.env
 
 
 class DQNModel(torch.nn.Module):
@@ -75,7 +78,7 @@ class DQNAgent:
         self.target_qnet.load_state_dict(self.qnet.state_dict())
         self.optim = optim.Adam(self.qnet.parameters(), lr=LR)
         self.loss_fn = torch.nn.MSELoss()
-        self.replay = ReplayBuffer(1000000, (self._obs_dim, ), 1)
+        self.replay = ReplayBuffer(100000, (self._obs_dim, ), 1)
         self._steps = 0
 
     def get_state_dict(self):
@@ -133,13 +136,22 @@ class DQNAgent:
                 t.copy_(0.01 * t.data + 0.99 * s.data)
 
 
+def make_env(**kwargs):
+    if ENV_NAME == 'SIMPLE':
+        return EnvEasy(kwargs['n_agents'])
+    elif ENV_NAME == 'DYNAMIC':
+        return DynamicEnv(kwargs['n_agents'])
+    else:
+        raise NotImplementedError('TODO')
+
+
 class DQNTrainer:
 
     def __init__(self, env_config):
         self._n_agents = env_config['n_agents']
         self._env = make_env(**env_config)
         self._policy_mapper = {
-            f'uav_{i}': DQNAgent(OBS_DIM, ACT_CNT) for i in range(env_config['n_agents'])
+            f'uav_{i}': DQNAgent(self._env.obs_dim, self._env.act_cnt) for i in range(env_config['n_agents'])
         }
         self._sampled_states = []
         self._sampled_index = 0
@@ -180,16 +192,20 @@ class DQNTrainer:
 
         for i, agent in enumerate(self._env.agents_name()):
             p = self._policy_mapper[agent]
-            self._policies[i].append(Policies(OBS_DIM, ACT_CNT, p.get_state_dict()))
+            self._policies[i].append(Policies(self._env.obs_dim, self._env.act_cnt, p.get_state_dict()))
 
         rao = self.log_rao_entropy()
         avg_e = self.log_average_entropy()
-        det_e = self.log_det_diversity()
 
         self._sw.add_scalar('rewards', rew, self._ep)
         self._sw.add_scalar('rao', rao, self._ep)
         self._sw.add_scalar('avg', avg_e, self._ep)
-        self._sw.add_scalar('det', det_e, self._ep)
+
+        if self._ep > 15:
+            det_e = self.log_det_diversity()
+            self._sw.add_scalar('det', det_e, self._ep)
+        else:
+            self._sw.add_scalar('det', 0.5, self._ep)  # TODO: HACK
 
         self.time_step_log()
 
@@ -227,7 +243,7 @@ def main():
     trainer = DQNTrainer({
         'n_agents': AGENTS
     })
-    for i in range(200):
+    for i in range(MAX_EP):
         r = trainer.train_one_ep()
         print(f'EP: {i} RE: {r}')
 
