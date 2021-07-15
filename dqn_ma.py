@@ -219,6 +219,7 @@ class DQNTrainer:
             avg_e = get_expected_entropy_over_states(self._policies[i], self._sampled_states)
             self._sw.add_scalar(f'agent_{i}/rao', rao, self._ep)
             self._sw.add_scalar(f'agent_{i}/avg_e', avg_e, self._ep)
+            # self._sw.add_scalar(f'agent_{i}/det', avg_e, self._ep)
 
 
 def main():

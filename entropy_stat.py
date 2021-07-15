@@ -69,19 +69,47 @@ def get_expected_entropy_over_states(policies, sampled_states):
     return total_entropy
 
 
+def binary_det(acts, n):
+    target = 0.5
+    ll = 0.01
+    lr = 1000
+    while lr - ll > 1e-4:
+        mid = (ll + lr) / 2
+        matrix = np.ones((n, n))
+        for i in range(n):
+            for j in range(i + 1, n):
+                l = 2 * mid * mid
+                d = np.exp(-(np.linalg.norm((acts[i] - acts[j] != 0).astype(float), 2) ** 2) / l)
+                matrix[i, j] = d
+                matrix[j, i] = d
+        div = np.linalg.det(matrix)
+        if div > target:
+            ll = mid
+        else:
+            lr = mid
+    return lr
+
+
+DET_L = None
+
+
 def get_det_diversity(policies, sampled_states):
+    global DET_L
     acts = []
-    L = len(policies) * 2
     n = len(policies)
     for v in policies:
         acts.append(v.choose_actions(sampled_states))
+
+    if DET_L is None:
+        DET_L = binary_det(acts, n)
+        print(f'DET_L: {DET_L} N_AGENTS: {n}')
+
     matrix = np.ones((n, n))
     for i in range(n):
         for j in range(i + 1, n):
-            l = 2 * L * L
+            l = 2 * DET_L * DET_L
             d = np.exp(-(np.linalg.norm((acts[i] - acts[j] != 0).astype(float), 2) ** 2) / l)
             matrix[i, j] = d
             matrix[j, i] = d
-    print(f'Mean: {np.mean(matrix)} Std: {np.std(matrix)}')
     div = np.linalg.det(matrix)
     return div
