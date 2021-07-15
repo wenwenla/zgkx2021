@@ -33,6 +33,8 @@ class GridEnv:
         self.now_steps = 0
         self.rnd = np.random.RandomState(rnd_seed)
 
+        self.attacker = []
+
     def get_observations(self):
         # SHOULD BE OVERRIDE BY SUBCLASS
         return {}
@@ -42,6 +44,10 @@ class GridEnv:
         return {}
 
     def update(self):
+        # SHOULD BE OVERRIDE BY SUBCLASS
+        pass
+
+    def init(self):
         # SHOULD BE OVERRIDE BY SUBCLASS
         pass
 
@@ -67,19 +73,15 @@ class GridEnv:
 
     def generate_init_pos(self):
         self.agent_pos = []
-        pos_set = set()
         for i in range(self.n_agents):
-            while True:
-                pos_r = self.rnd.randint(1, 20)
-                pos_c = self.rnd.randint(0, 2)
-                if (pos_r, pos_c) not in pos_set and self._map[pos_r][pos_c] != GridEnv.OBSTACLE_TOKEN:
-                    pos_set.add((pos_r, pos_c))
-                    self.agent_pos.append((pos_r, pos_c))
-                    break
+            pos_r = self.rnd.randint(1, 20)
+            pos_c = self.rnd.randint(1, 5)
+            self.agent_pos.append((pos_r, pos_c))
 
     def reset(self):
         self.generate_init_pos()
         self.now_steps = 0
+        self.init()
         return self.get_observations()
 
     def step(self, actions):
@@ -109,6 +111,9 @@ class GridEnv:
 
         for pos in self.agent_pos:
             draw_ball(image, pos[0], pos[1], cell_size, 'red')
+
+        for atk in self.attacker:
+            draw_ball(image, atk[0], atk[1], cell_size, 'blue')
 
         image = np.asarray(image)
         if mode == 'rgb_array':

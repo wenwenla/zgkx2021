@@ -184,12 +184,12 @@ class DQNTrainer:
 
         rao = self.log_rao_entropy()
         avg_e = self.log_average_entropy()
-        # det_e = self.log_det_diversity()
+        det_e = self.log_det_diversity()
 
         self._sw.add_scalar('rewards', rew, self._ep)
         self._sw.add_scalar('rao', rao, self._ep)
         self._sw.add_scalar('avg', avg_e, self._ep)
-        # self._sw.add_scalar('det', det_e, self._ep)
+        self._sw.add_scalar('det', det_e, self._ep)
 
         self.time_step_log()
 

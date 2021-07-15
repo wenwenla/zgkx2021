@@ -71,7 +71,7 @@ def get_expected_entropy_over_states(policies, sampled_states):
 
 def get_det_diversity(policies, sampled_states):
     acts = []
-    L = 10
+    L = len(policies) * 2
     n = len(policies)
     for v in policies:
         acts.append(v.choose_actions(sampled_states))
@@ -79,8 +79,9 @@ def get_det_diversity(policies, sampled_states):
     for i in range(n):
         for j in range(i + 1, n):
             l = 2 * L * L
-            d = np.exp(-(np.linalg.norm(acts[i] - acts[j], 2) ** 2) / l)
+            d = np.exp(-(np.linalg.norm((acts[i] - acts[j] != 0).astype(float), 2) ** 2) / l)
             matrix[i, j] = d
             matrix[j, i] = d
+    print(f'Mean: {np.mean(matrix)} Std: {np.std(matrix)}')
     div = np.linalg.det(matrix)
     return div
