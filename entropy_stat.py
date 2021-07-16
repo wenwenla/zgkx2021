@@ -71,9 +71,9 @@ def get_expected_entropy_over_states(policies, sampled_states):
 
 def binary_det(acts, n):
     target = 0.5
-    ll = 0.01
-    lr = 1000
-    while lr - ll > 1e-4:
+    ll = 1e-8
+    lr = 100
+    while lr - ll > 1e-8:
         mid = (ll + lr) / 2
         matrix = np.ones((n, n))
         for i in range(n):

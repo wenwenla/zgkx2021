@@ -60,7 +60,7 @@ class DynamicEnv(GridEnv):
 
         for i, p in enumerate(next_pos):
             if p in attacker_set:
-                result[f'uav_{i}'] -= 10
+                result[f'uav_{i}'] -= 0.1
         return result
 
     def update(self):

@@ -32,6 +32,7 @@ LR = 1e-3
 BATCH = 128
 GAMMA = 0.95
 START_SAMPLES = 2000
+REPLAY_BUFFER_SIZE = int(1e6)
 RENDER_FLAG = False
 FOLDER = args.folder
 HISTORY_LEN = args.history
@@ -78,7 +79,7 @@ class DQNAgent:
         self.target_qnet.load_state_dict(self.qnet.state_dict())
         self.optim = optim.Adam(self.qnet.parameters(), lr=LR)
         self.loss_fn = torch.nn.MSELoss()
-        self.replay = ReplayBuffer(100000, (self._obs_dim, ), 1)
+        self.replay = ReplayBuffer(REPLAY_BUFFER_SIZE, (self._obs_dim, ), 1)
         self._steps = 0
 
     def get_state_dict(self):
@@ -134,6 +135,9 @@ class DQNAgent:
         with torch.no_grad():
             for t, s in zip(self.target_qnet.parameters(), self.qnet.parameters()):
                 t.copy_(0.01 * t.data + 0.99 * s.data)
+
+    def parameters(self):
+        return self.qnet.state_dict()
 
 
 def make_env(**kwargs):
@@ -237,6 +241,9 @@ class DQNTrainer:
             self._sw.add_scalar(f'agent_{i}/avg_e', avg_e, self._ep)
             # self._sw.add_scalar(f'agent_{i}/det', avg_e, self._ep)
 
+    def save_model(self):
+        torch.save([v.parameters() for v in self._policy_mapper.values()], f'{FOLDER}/{self._ep}.pkl')
+
 
 def main():
     torch.set_num_threads(1)
@@ -246,6 +253,8 @@ def main():
     for i in range(MAX_EP):
         r = trainer.train_one_ep()
         print(f'EP: {i} RE: {r}')
+        if i % 100 == 0:
+            trainer.save_model()
 
 
 if __name__ == '__main__':
