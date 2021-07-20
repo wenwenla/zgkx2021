@@ -49,10 +49,9 @@ def main():
     env = EnvEasy(20)
     env.reset()
     while True:
-        r = env.step({f'uav_{k}': np.random.randint(0, 5) for k in range(2)})
+        r = env.step({f'uav_{k}': np.random.randint(0, 5) for k in range(20)})
         print(r)
         env.render()
-        time.sleep(1)
 
 
 if __name__ == '__main__':

@@ -23,6 +23,7 @@ parser.add_argument('--agents', type=int)
 parser.add_argument('--history', type=int)
 parser.add_argument('--folder', type=str)
 parser.add_argument('--max_ep', type=int)
+parser.add_argument('--group', type=int)
 parser.add_argument('--env', type=str)
 
 args = parser.parse_args()
@@ -39,6 +40,7 @@ HISTORY_LEN = args.history
 AGENTS = args.agents
 MAX_EP = args.max_ep
 ENV_NAME = args.env
+GROUP_SZ = args.group
 
 
 class DQNModel(torch.nn.Module):
@@ -154,9 +156,13 @@ class DQNTrainer:
     def __init__(self, env_config):
         self._n_agents = env_config['n_agents']
         self._env = make_env(**env_config)
-        self._policy_mapper = {
-            f'uav_{i}': DQNAgent(self._env.obs_dim, self._env.act_cnt) for i in range(env_config['n_agents'])
-        }
+
+        real_policy = [DQNAgent(self._env.obs_dim, self._env.act_cnt)
+                       for _ in range((self._n_agents + GROUP_SZ - 1) // GROUP_SZ)]
+        self._policy_mapper = {}
+        for i in range(self._n_agents):
+            self._policy_mapper[f'uav_{i}'] = real_policy[i // GROUP_SZ]
+
         self._sampled_states = []
         self._sampled_index = 0
         self._policies = [deque([], maxlen=HISTORY_LEN) for _ in range(env_config['n_agents'])]
