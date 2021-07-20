@@ -45,7 +45,7 @@ def get_rao_quadratic_entropy(policies, sampled_states):
     policy_prob = np.zeros((policy_index, ), dtype='float')
 
     for i in range(policy_index):
-        policy_prob[i] = p_i[tuple(i_p[i].tolist())] / policy_index
+        policy_prob[i] = p_i[tuple(i_p[i].tolist())] / len(policies)
 
     result = 0
     for i in range(policy_index):
