@@ -3,6 +3,8 @@ import itertools
 import math
 import time
 
+import torch
+
 from util import *
 from PIL import Image
 
@@ -140,8 +142,8 @@ class AttackEnv:
             self._boom_areas.clear()
 
             attack_choices = []
-            for row in range(0, AttackEnv.MAX_SIZE_ROW - self._boom_range):
-                for col in range(1, AttackEnv.MAX_SIZE_COL - self._boom_range - 1):
+            for row in range(0, AttackEnv.MAX_SIZE_ROW - self._boom_range + 1):
+                for col in range(1, AttackEnv.MAX_SIZE_COL - self._boom_range - 1 + 1):
                     cnt = 0
                     for dr, dc in itertools.product(range(self._boom_range), range(self._boom_range)):
                         cnt += self._bit_cnt[row + dr, col + dc]
@@ -203,7 +205,7 @@ class AttackEnv:
 
 
 def main():
-    env = AttackEnv(10, 1.0, 10, 2, 2)
+    env = AttackEnv(10, 0.0, 10, 2, 2)
     env.reset()
     done = False
     pre = time.time()
