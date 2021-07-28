@@ -80,6 +80,7 @@ class AttackEnv:
             rewards[i] += dist_prev - dist_next
         # attack based reward
         atk_list = []
+
         for i in range(self._n_agents):
             attacked = False
             for j in range(len(self._boom_areas)):
@@ -87,33 +88,30 @@ class AttackEnv:
                         self._boom_areas[j][1] <= self._pos[i][1] < self._boom_areas[j][1] + self._boom_range:
                     attacked = True
                     break
-            if attacked:
+            if attacked and np.random.uniform() < self._hit_rate:
                 rewards[i] -= AttackEnv.ATTACK_PENALTY
                 atk_list.append(i)
+
         # time based reward
         for i in range(self._n_agents):
             rewards[i] -= 1
 
         for i in range(self._n_agents):
             if now_positions[i] == target_position:
-                rewards[i] = 0
-                self._mission_completed = True
                 for j in range(self._n_agents):
                     # if one UAV reaches the target area,
                     # the task is completed and all UAVs will be rewarded by `MISSION_COMPLETE_REWARD`
-                    rewards[j] += AttackEnv.MISSION_COMPLETE_REWARD
-                    break
-            if not self._alive[i]:
-                rewards[i] = 0
+                    rewards[j] = AttackEnv.MISSION_COMPLETE_REWARD
+                self._mission_completed = True
+                break
+
+        if not self._mission_completed:
+            for i in range(self._n_agents):
+                if not self._alive[i]:
+                    rewards[i] = 0
 
         for atk in atk_list:
-            magic = np.random.uniform()
-            if magic < self._hit_rate:
-                # print('Attacked')
-                self._alive[atk] = False
-            else:
-                ...
-                # print('Miss')
+            self._alive[atk] = False
 
         return {
             f'uav_{i}': rewards[i] for i in range(self._n_agents)
