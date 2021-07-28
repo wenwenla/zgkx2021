@@ -19,14 +19,15 @@ class AttackEnv:
 
     MAX_SIZE_ROW = 20
     MAX_SIZE_COL = 20
-    ATTACK_PENALTY = 200
     VIEW_RANGE = 3
+    MISSION_COMPLETE_REWARD = 150
+    ATTACK_PENALTY = 100
 
     @staticmethod
     def is_alive(state):
         return abs(state[-3] - 1.0) < 1e-6
 
-    def __init__(self, n_agents, attack_epsilon, boom_step, boom_range, boom_cnt):
+    def __init__(self, n_agents, attack_epsilon, boom_step, boom_range, boom_cnt, hit_rate):
         self._n_agents = n_agents
         self._pos = [
             [0, 0] for _ in range(n_agents)
@@ -41,7 +42,9 @@ class AttackEnv:
         self._step = 0
         self._boom_areas = []
         self._bit_cnt = None
+        self._hit_rate = hit_rate
         self._viewer = None
+        self._mission_completed = True
 
         self.obs_dim = (2 * AttackEnv.VIEW_RANGE + 1) ** 2 + 3
         self.act_cnt = 5
@@ -94,11 +97,23 @@ class AttackEnv:
         for i in range(self._n_agents):
             if now_positions[i] == target_position:
                 rewards[i] = 0
+                self._mission_completed = True
+                for j in range(self._n_agents):
+                    # if one UAV reaches the target area,
+                    # the task is completed and all UAVs will be rewarded by `MISSION_COMPLETE_REWARD`
+                    rewards[j] += AttackEnv.MISSION_COMPLETE_REWARD
+                    break
             if not self._alive[i]:
                 rewards[i] = 0
 
         for atk in atk_list:
-            self._alive[atk] = False
+            magic = np.random.uniform()
+            if magic < self._hit_rate:
+                # print('Attacked')
+                self._alive[atk] = False
+            else:
+                ...
+                # print('Miss')
 
         return {
             f'uav_{i}': rewards[i] for i in range(self._n_agents)
@@ -112,6 +127,7 @@ class AttackEnv:
         self._alive = [
             True for _ in range(self._n_agents)
         ]
+        self._mission_completed = False
         return self.get_observation()
 
     def step(self, actions):
@@ -143,7 +159,7 @@ class AttackEnv:
 
             attack_choices = []
             for row in range(0, AttackEnv.MAX_SIZE_ROW - self._boom_range + 1):
-                for col in range(1, AttackEnv.MAX_SIZE_COL - self._boom_range - 1 + 1):
+                for col in range(4, AttackEnv.MAX_SIZE_COL - self._boom_range - 1 + 1):
                     cnt = 0
                     for dr, dc in itertools.product(range(self._boom_range), range(self._boom_range)):
                         cnt += self._bit_cnt[row + dr, col + dc]
@@ -179,7 +195,7 @@ class AttackEnv:
                 all_die = False
                 break
 
-        return obs, rew, self._step == 200 or all_die, {}
+        return obs, rew, self._step == 200 or all_die or self._mission_completed, {}
 
     def render(self, mode='human'):
         cell_size = 1000 // max(AttackEnv.MAX_SIZE_ROW, AttackEnv.MAX_SIZE_COL)
@@ -205,7 +221,7 @@ class AttackEnv:
 
 
 def main():
-    env = AttackEnv(10, 0.0, 10, 2, 2)
+    env = AttackEnv(n_agents=20, attack_epsilon=1.0, boom_step=10, boom_range=2, boom_cnt=2, hit_rate=0.5)
     env.reset()
     done = False
     pre = time.time()
@@ -215,7 +231,7 @@ def main():
             f'uav_{i}': np.random.randint(0, 5) for i in range(env._n_agents)
         })
 
-        # env.render()
+        env.render()
         # time.sleep(0.2)
     nxt = time.time()
     print(f'Time: {nxt - pre}')
