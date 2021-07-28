@@ -17,12 +17,13 @@ from entropy_stat import get_rao_quadratic_entropy, get_expected_entropy_over_st
 import argparse
 
 
-parser = argparse.ArgumentParser(description='[agents] [epsilon] [boom_step] [boom_range] [boom_cnt]')
+parser = argparse.ArgumentParser(description='[agents] [epsilon] [boom_step] [boom_range] [boom_cnt] [hit_rate]')
 parser.add_argument('--agents', type=int, default=20)
 parser.add_argument('--epsilon', type=float, default=1.)
 parser.add_argument('--boom_step', type=int, default=20)
 parser.add_argument('--boom_range', type=int, default=2)
 parser.add_argument('--boom_cnt', type=int, default=2)
+parser.add_argument('--hit_rate', type=int, default=1.0)
 parser.add_argument('--folder', type=str, default='logs')
 parser.add_argument('--history', type=int, default=10)
 parser.add_argument('--max_ep', type=int, default=500)
@@ -262,7 +263,8 @@ def main():
         'attack_epsilon': args.epsilon,
         'boom_step': args.boom_step,
         'boom_range': args.boom_range,
-        'boom_cnt': args.boom_cnt
+        'boom_cnt': args.boom_cnt,
+        'hit_rate': args.hit_rate
     })
     for i in range(MAX_EP):
         r = trainer.train_one_ep()
